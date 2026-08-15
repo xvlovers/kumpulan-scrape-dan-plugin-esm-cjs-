@@ -3,7 +3,7 @@ name: tiktok downloader
 base url: https://tikwm.com/api
 
 author: xvlovers
-github: xvlover
+github: xvlovers
 
 fungsi: download video tiktok dengan watermark dari url publik.
 

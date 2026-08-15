@@ -3,7 +3,7 @@ name: tiktok stalk
 base url: https://www.kompas.com
 
 author: xvlovers
-github: xvlover
+github: xvlovers
 
 fungsi: stalking tiktok account
 credit: xvlovers

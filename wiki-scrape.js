@@ -3,7 +3,7 @@ name: wikipedia scraper
 base url: https://id.wikipedia.org
 
 author: xvlovers
-github: xvlover
+github: xvlovers
 
 fungsi: scrape artikel wikipedia lengkap dengan metadata.
 

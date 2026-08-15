@@ -3,7 +3,7 @@ name: kompass scrape
 base url: https://www.kompas.com
 
 author: xvlovers
-github: xvlover
+github: xvlovers
 
 fungsi: scrape website kompas.com untuk mengambil info media.
 

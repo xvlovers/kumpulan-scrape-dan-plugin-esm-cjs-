@@ -3,7 +3,7 @@ name: tinypng uploader
 base url: https://tinypng.com
 
 author: xvlovers
-github: xvlover
+github: xvlovers
 
 fungsi: upload gambar ke tinypng untuk kompresi otomatis.
 

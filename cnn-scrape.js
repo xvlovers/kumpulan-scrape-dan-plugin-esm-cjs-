@@ -3,7 +3,7 @@ name: cnn indonesia scraper
 base url: https://www.cnnindonesia.com
 
 author: xvlovers
-github: xvlover
+github: xvlovers
 
 fungsi: scrape berita terbaru dari cnn indonesia.
 
