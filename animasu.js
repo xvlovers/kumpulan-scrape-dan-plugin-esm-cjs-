@@ -12,7 +12,6 @@ const axios = require("axios")
 const cheerio = require("cheerio")
 
 const BASE = "https://animasu.love"
-const AJAX = BASE + "/wp-admin/admin-ajax.php"
 const UA = "Mozilla/5.0 (Linux; Android 13; SM-A536E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
 
 const client = axios.create({
@@ -28,6 +27,14 @@ const client = axios.create({
 
 function clean(t) {
   return String(t || "").replace(/\s+/g, " ").trim()
+}
+
+function absoluteUrl(u) {
+  if (!u) return null
+  if (u.startsWith("http")) return u
+  if (u.startsWith("//")) return "https:" + u
+  if (u.startsWith("/")) return BASE + u
+  return BASE + "/" + u
 }
 
 function decodeBase64Iframe(str) {
@@ -53,21 +60,25 @@ function parseCards($, selector) {
   const seen = new Set()
   $(selector).each((_, el) => {
     const $el = $(el)
-    const link = $el.find("a[href]").first().attr("href") || null
-    if (!link) return
-    if (seen.has(link)) return
+    const link = $el.find("a[href*='/anime/'], a[href]").first().attr("href") || null
+    if (!link || seen.has(link)) return
     seen.add(link)
 
-    const title = clean($el.find("h2, h3, .tt, .title, a[title]").first().text()) || clean($el.find("a[title]").attr("title"))
-    const img = $el.find("img").first().attr("src") || $el.find("img").first().attr("data-src") || null
+    const title = clean($el.find("h2, h3, .tt, .title").first().text()) ||
+                  clean($el.find("a[title]").attr("title")) ||
+                  clean($el.find("a[href]").first().text())
+    const img = $el.find("img").first().attr("src") ||
+                $el.find("img").first().attr("data-src") ||
+                $el.find("img").first().attr("data-lazy-src") || null
     const ep = clean($el.find(".epx, .epxs, .limit").first().text())
     const type = clean($el.find(".typez, .type").first().text())
     const status = clean($el.find(".status").first().text())
 
+    if (!title) return
     out.push({
-      title: title || null,
-      url: link,
-      image: img,
+      title,
+      url: absoluteUrl(link),
+      image: absoluteUrl(img),
       episode: ep || null,
       type: type || null,
       status: status || null
@@ -77,12 +88,10 @@ function parseCards($, selector) {
 }
 
 async function latest(page = 1) {
-  const url = page > 1
-    ? BASE + "/pencarian/page/" + page + "/?urutan=update"
-    : BASE + "/"
+  const url = page > 1 ? BASE + "/page/" + page + "/" : BASE + "/"
   const html = await fetchHtml(url)
   const $ = cheerio.load(html)
-  const items = parseCards($, ".listupd .bs, .listupd .bsx, article.bs, .bixbox .bs")
+  const items = parseCards($, ".listupd .bs, .listupd .bsx, .animepost, article.bs")
   return { page, url, count: items.length, items }
 }
 
@@ -91,21 +100,54 @@ async function search(query) {
   const url = BASE + "/?s=" + encodeURIComponent(query)
   const html = await fetchHtml(url)
   const $ = cheerio.load(html)
-  const items = parseCards($, ".listupd .bs, .listupd .bsx, article.bs")
+  const items = parseCards($, ".listupd .bs, .listupd .bsx, .animepost, article.bs")
   return { query, url, count: items.length, items }
 }
 
-async function filter(params = {}) {
-  const qs = new URLSearchParams()
-  for (const [k, v] of Object.entries(params)) {
-    if (Array.isArray(v)) v.forEach(x => qs.append(k + "[]", x))
-    else if (v) qs.append(k, v)
-  }
-  const url = BASE + "/pencarian/?" + qs.toString()
+async function jadwal() {
+  const url = BASE + "/jadwal/"
   const html = await fetchHtml(url)
   const $ = cheerio.load(html)
-  const items = parseCards($, ".listupd .bs, .listupd .bsx, article.bs")
-  return { url, params, count: items.length, items }
+
+  const HARI = ["minggu", "senin", "selasa", "rabu", "kamis", "jum'at", "jumat", "sabtu", "update acak"]
+  const days = []
+
+  $(".bixbox").each((_, el) => {
+    const $el = $(el)
+    const header = clean($el.find(".releases h3, .releases h2, .releases h1").first().text())
+    if (!header) return
+    if (!HARI.includes(header.toLowerCase())) return
+
+    const anime = []
+    const seen = new Set()
+
+    $el.find(".listupd .bsx, .listupd .bs").each((__, item) => {
+      const $item = $(item)
+      const $a = $item.find("a[href*='/anime/']").first()
+      const link = $a.attr("href")
+      if (!link || seen.has(link)) return
+      seen.add(link)
+
+      const title = clean($a.attr("title")) || clean($item.find(".tt").text())
+      const img = $item.find("img").first().attr("src") ||
+                  $item.find("img").first().attr("data-lazy-src") ||
+                  $item.find("img").first().attr("data-src") || null
+      const epx = clean($item.find(".epx").first().text())
+      const subDub = clean($item.find(".sb").first().text())
+
+      anime.push({
+        title: title || null,
+        url: absoluteUrl(link),
+        image: absoluteUrl(img),
+        status: epx || null,
+        label: subDub || null
+      })
+    })
+
+    if (anime.length) days.push({ day: header, count: anime.length, anime })
+  })
+
+  return { url, dayCount: days.length, total: days.reduce((a, b) => a + b.count, 0), days }
 }
 
 async function detail(animeUrl) {
@@ -115,7 +157,9 @@ async function detail(animeUrl) {
   const $ = cheerio.load(html)
 
   const title = clean($("h1.entry-title, h1").first().text())
-  const image = $(".thumb img, .infomanga img, .ims img").first().attr("src") || null
+  const image = absoluteUrl($("meta[property='og:image']").attr("content")) ||
+                absoluteUrl($(".thumb img").attr("src")) ||
+                absoluteUrl($(".thumb img").attr("data-lazy-src"))
   const synopsis = clean($(".entry-content[itemprop='description'] p, .desc p, .entry-content p").first().text())
 
   const meta = {}
@@ -135,14 +179,14 @@ async function detail(animeUrl) {
   const seen = new Set()
   $("a[href]").each((_, el) => {
     const href = $(el).attr("href") || ""
-    if (!/episode/i.test(href)) return
-    const cleanHref = href.replace(/^https?:\/\/[^/]+/, "")
-    if (seen.has(cleanHref)) return
-    seen.add(cleanHref)
+    if (!/episode|ep-\d+|-\d+-subtitle/i.test(href)) return
+    const absHref = absoluteUrl(href)
+    if (!absHref || seen.has(absHref)) return
+    seen.add(absHref)
     const label = clean($(el).text())
     const m = label.match(/(\d+|end|END)/)
     episodes.push({
-      url: href.startsWith("http") ? href : BASE + href,
+      url: absHref,
       episode: m ? m[1] : null,
       label: label || null
     })
@@ -154,7 +198,7 @@ async function detail(animeUrl) {
     image,
     synopsis: synopsis || null,
     status: meta.status || null,
-    type: meta.type || null,
+    type: meta.type || meta.tipe || null,
     released: meta.released || meta.rilis || null,
     genres,
     episodeCount: episodes.length,
@@ -210,17 +254,12 @@ async function episode(epUrl) {
     if (href) downloads.push({ url: href, label: text || null })
   })
 
-  const prev = $("a[href*='episode']:contains('Prev')").attr("href") || null
-  const next = $("a[href*='episode']:contains('Next')").attr("href") || null
-
   return {
     url: abs,
     title: title || null,
-    animeLink,
+    animeLink: absoluteUrl(animeLink),
     streams,
-    downloads,
-    prevEpisode: prev,
-    nextEpisode: next
+    downloads
   }
 }
 
@@ -235,19 +274,8 @@ async function main() {
       result = { mode: "latest", ...(await latest(page)) }
     } else if (cmd === "search") {
       result = { mode: "search", ...(await search(args.slice(1).join(" "))) }
-    } else if (cmd === "filter") {
-      const params = {}
-      for (const a of args.slice(1)) {
-        const [k, v] = a.split("=")
-        if (k && v) {
-          if (k.endsWith("[]")) {
-            const key = k.slice(0, -2)
-            if (!params[key]) params[key] = []
-            params[key].push(v)
-          } else params[k] = v
-        }
-      }
-      result = { mode: "filter", ...(await filter(params)) }
+    } else if (cmd === "jadwal" || cmd === "schedule") {
+      result = { mode: "jadwal", ...(await jadwal()) }
     } else if (cmd === "detail") {
       result = { mode: "detail", ...(await detail(args[1])) }
     } else if (cmd === "episode" || cmd === "ep") {
@@ -257,23 +285,15 @@ async function main() {
         "Perintah:",
         "  node animasu.js latest [page]",
         '  node animasu.js search "<judul>"',
-        '  node animasu.js filter "genre[]=action" "status=ongoing" "tipe=tv" "urutan=update"',
+        "  node animasu.js jadwal",
         '  node animasu.js detail "<url_anime>"',
         '  node animasu.js episode "<url_episode>"'
       ].join("\n"))
     }
 
-    console.log(JSON.stringify({
-      author: "xvlovers",
-      status: true,
-      data: result
-    }, null, 2))
+    console.log(JSON.stringify({ author: "xvlovers", status: true, data: result }, null, 2))
   } catch (e) {
-    console.log(JSON.stringify({
-      author: "xvlovers",
-      status: false,
-      message: e.message
-    }, null, 2))
+    console.log(JSON.stringify({ author: "xvlovers", status: false, message: e.message }, null, 2))
     process.exit(1)
   }
 }
