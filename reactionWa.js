@@ -10,7 +10,7 @@
 const axios = require("axios")
 
 const BASE_URL = "https://reaction-whatsapp.edgeone.dev"
-const API_KEY = "C3CENFUP"
+const API_KEY = "9J88DPLJ"
 
 async function main() {
   const link = process.argv[2]
