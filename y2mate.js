@@ -12,7 +12,8 @@ const axios = require("axios")
 const fs = require("fs")
 const path = require("path")
 
-const API_KEY = "c6a644f406b57d0dd83837c868a7482e"
+const API_KEY = process.env.Y2MATE_API_KEY
+if (!API_KEY) throw new Error("Y2MATE_API_KEY env var wajib diset")
 const API_HOST = "https://eta.etacloud.org"
 const REFERER = "https://y2mate.gs/"
 const UA = "Mozilla/5.0 (Linux; Android 13; SM-A536E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"

@@ -14,7 +14,8 @@ const path = require("path")
 
 const BASE = "https://www.mineaddons.web.id"
 const SUPABASE = "https://uegktacgipzmwefwueki.supabase.co"
-const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlZ2t0YWNnaXB6bXdlZnd1ZWtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzMTY3OTgsImV4cCI6MjA3MDg5Mjc5OH0.elDE5g_xVCED-8CiyhTJOLiVOV-AWO6LYaI5aN95crA"
+const ANON_KEY = process.env.MINEADDONS_SUPABASE_ANON_KEY
+if (!ANON_KEY) throw new Error("MINEADDONS_SUPABASE_ANON_KEY env var wajib diset")
 const UA = "Mozilla/5.0 (Linux; Android 13; SM-A536E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
 
 const client = axios.create({
@@ -154,7 +155,8 @@ async function stats() {
 
 async function download(url, outName) {
   if (!url) throw new Error("URL download kosong")
-  const out = path.join(process.cwd(), outName || ("addon-" + Date.now() + ".mcaddon"))
+  const safeOutName = safeName(outName || ("addon-" + Date.now() + ".mcaddon"))
+  const out = path.join(process.cwd(), safeOutName)
   const writer = fs.createWriteStream(out)
 
   const r = await axios.get(url, {
