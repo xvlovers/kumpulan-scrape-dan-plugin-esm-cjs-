@@ -1,7 +1,7 @@
 /*
 * scrape nekopoi *
 * author skrep: xvlovers *
-* git: https://github.com/xvlovers/kumpulan-scrape-dan-plugin-esm-cjs-/blob/main/nekopoi.js *
+* git: https://github.com/xvlovers/kumpulan-scrape-dan-plugin-esm-cjs-/blob/main/nekopoiv2.js *
 * base URL: https://nekopoi.care *
 * credit: xv *
 * chanel WhatsApp untuk info : https://whatsapp.com/channel/0029VbCKJpb6LwHpbtC1mb3E *
